@@ -3,19 +3,22 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import fetch from "node-fetch";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all origins (Change for security)
+    origin: process.env.CLIENT_ORIGIN,
     methods: ["GET", "POST"],
   },
 });
 
-app.use(cors());
+app.use(cors({ origin: process.env.CLIENT_ORIGIN }));
 
-const API_URL = "http://192.168.52.120:4000/get-random-cars";
+const API_URL = process.env.SERVER_API;
 
 const lobbies = {}; // { lobbyId: { players, host, roundTime, totalRounds, currentRound, timer } }
 
@@ -173,9 +176,11 @@ io.on("connection", (socket) => {
       score: 0,
     }));
 
+    const { price, ...carWithOutPrice } = lobby.cars[lobby.currentRound - 1];
+
     io.to(lobbyId).emit("round-started", {
       round: lobby.currentRound,
-      currentCar: lobby.cars[lobby.currentRound - 1],
+      currentCar: carWithOutPrice,
       startTime: Date.now(),
     });
 
@@ -192,6 +197,7 @@ io.on("connection", (socket) => {
       round: lobby.currentRound,
       players: lobby.players,
       lastScores: lobby.lastScores,
+      lastPrice: lobby.cars[lobby.currentRound - 1].price,
       nextImage:
         lobby.currentRound !== lobby.cars.length
           ? lobby.cars[lobby.currentRound].images[0]
