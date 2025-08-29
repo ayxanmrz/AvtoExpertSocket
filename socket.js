@@ -149,12 +149,14 @@ io.on("connection", (socket) => {
       if (carsData.error) {
         io.to(lobbyId).emit("game-error", { message: carsData.error });
         lobbies[lobbyId].isLoading = false;
-      } else if (carsData.length === 0) {
+      } else if (carsData.cars.length === 0) {
         io.to(lobbyId).emit("game-error", { message: "Internal Server Error" });
         lobbies[lobbyId].isLoading = false;
       } else {
-        io.to(lobbyId).emit("game-started", { roundNumber: carsData.length });
-        lobbies[lobbyId].cars = carsData;
+        io.to(lobbyId).emit("game-started", {
+          roundNumber: carsData.cars.length,
+        });
+        lobbies[lobbyId].cars = carsData.cars;
         lobbies[lobbyId].currentRound = 1;
         lobbies[lobbyId].isLoading = false;
         console.log(lobbies);
