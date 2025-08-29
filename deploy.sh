@@ -28,7 +28,7 @@ npm ci --only=production
 
 # Start app with PM2
 echo "▶️ Starting app with PM2..."
-pm2 start server.js --name "socket-app"
+pm2 start socket.js --name "socket-app"
 pm2 save
 pm2 startup systemd -u $USER --hp $HOME
 
