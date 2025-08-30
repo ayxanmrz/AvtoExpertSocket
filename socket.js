@@ -183,12 +183,12 @@ io.on("connection", (socket) => {
     io.to(lobbyId).emit("round-started", {
       round: lobby.currentRound,
       currentCar: carWithOutPrice,
-      startTime: Date.now(),
+      endTime: Date.now() + lobby.roundTime * 1000,
     });
 
     lobby.timer = setTimeout(() => {
       endRound(lobbyId);
-    }, lobby.roundTime * 1000);
+    }, lobby.roundTime * 1000 + 300);
   }
 
   function endRound(lobbyId) {
