@@ -36,6 +36,10 @@ function generateRoomId(length) {
 io.on("connection", (socket) => {
   console.log(`User connected: ${socket.id}`);
 
+  socket.on("get-server-time", (callback) => {
+    callback(Date.now());
+  });
+
   socket.on("create-lobby", ({ roundTime, totalRounds }) => {
     let lobbyId = generateRoomId(5);
     if (!lobbies[lobbyId]) {
@@ -188,7 +192,7 @@ io.on("connection", (socket) => {
 
     lobby.timer = setTimeout(() => {
       endRound(lobbyId);
-    }, lobby.roundTime * 1000 + 300);
+    }, lobby.roundTime * 1000);
   }
 
   function endRound(lobbyId) {
