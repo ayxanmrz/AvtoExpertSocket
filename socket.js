@@ -143,30 +143,41 @@ io.on("connection", (socket) => {
   //   }
   // });
 
-  socket.on("start-game", async (lobbyId) => {
-    if (lobbies[lobbyId] && lobbies[lobbyId].host === socket.id) {
-      io.to(lobbyId).emit("loading", { status: true }); // Notify client that loading starts
-      lobbies[lobbyId].isLoading = true;
-      const carsData = await fetchCars(lobbies[lobbyId].totalRounds); // Fetch car data
+  socket.on("start-game", async (lobbyId, { totalRounds, roundTime }) => {
+    const lobby = lobbies[lobbyId];
+    if (!lobby || lobby.host !== socket.id) return;
+
+    io.to(lobbyId).emit("loading", { status: true });
+    lobby.isLoading = true;
+    lobby.totalRounds = totalRounds;
+    lobby.roundTime = roundTime;
+
+    try {
+      const carsData = await fetchCars(lobby.totalRounds);
 
       if (carsData.error) {
         io.to(lobbyId).emit("game-error", { message: carsData.error });
-        lobbies[lobbyId].isLoading = false;
-      } else if (carsData.cars.length === 0) {
-        io.to(lobbyId).emit("game-error", { message: "Internal Server Error" });
-        lobbies[lobbyId].isLoading = false;
-      } else {
-        io.to(lobbyId).emit("game-started", {
-          roundNumber: carsData.cars.length,
-        });
-        lobbies[lobbyId].cars = carsData.cars;
-        lobbies[lobbyId].currentRound = 1;
-        lobbies[lobbyId].isLoading = false;
-        console.log(lobbies);
-        startRound(lobbyId);
+        lobby.isLoading = false;
+        return;
       }
 
-      io.to(lobbyId).emit("loading", { status: false }); // Notify client that loading is done
+      if (!carsData.cars?.length) {
+        io.to(lobbyId).emit("game-error", { message: "Internal Server Error" });
+        lobby.isLoading = false;
+        return;
+      }
+
+      lobby.cars = carsData.cars;
+      lobby.currentRound = 1;
+      lobby.isLoading = false;
+
+      io.to(lobbyId).emit("game-started", {
+        roundNumber: lobby.cars.length,
+      });
+
+      startRound(lobbyId);
+    } finally {
+      io.to(lobbyId).emit("loading", { status: false });
     }
   });
 
