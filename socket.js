@@ -33,6 +33,11 @@ function generateRoomId(length) {
 
 // Create a lobby
 io.on("connection", (socket) => {
+  const rawIp =
+    socket.handshake.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+    socket.handshake.address ||
+    socket.request?.connection?.remoteAddress;
+  socket.data.ip = normalizeIp(rawIp);
   console.log(`User connected: ${socket.id}`);
 
   socket.on("get-server-time", (callback) => {
@@ -51,6 +56,7 @@ io.on("connection", (socket) => {
         currentRound: 0,
         timer: null,
         lastScores: [],
+        bannedPlayers: new Set([]),
         isLoading: false,
       };
       socket.join(lobbyId);
@@ -61,6 +67,14 @@ io.on("connection", (socket) => {
   // Join a lobby
   socket.on("join-lobby", (lobbyId, username, callback) => {
     if (lobbies[lobbyId]) {
+      if (
+        lobbies[lobbyId].bannedPlayers &&
+        lobbies[lobbyId].bannedPlayers.has(socket.data.ip)
+      ) {
+        callback({ status: false, err: "banned_from_lobby" });
+        return;
+      }
+
       if (lobbies[lobbyId].players.some((p) => p.username === username)) {
         callback({ status: false, err: "username_already_exists" });
         return;
@@ -134,14 +148,6 @@ io.on("connection", (socket) => {
     }
     console.log(lobbies[lobbyId].players);
   });
-
-  // Start game (Host only)
-  // socket.on("start-game", (lobbyId) => {
-  //   if (lobbies[lobbyId] && lobbies[lobbyId].host === socket.id) {
-  //     lobbies[lobbyId].currentRound = 1;
-  //     startRound(lobbyId);
-  //   }
-  // });
 
   socket.on("start-game", async (lobbyId, { totalRounds, roundTime }) => {
     const lobby = lobbies[lobbyId];
@@ -267,11 +273,62 @@ io.on("connection", (socket) => {
     });
   };
 
+  function normalizeIp(ip) {
+    if (!ip) return ip;
+    return ip.startsWith("::ffff:") ? ip.replace("::ffff:", "") : ip;
+  }
+
+  socket.on("ban-player", (lobbyId, playerSocketId, cb) => {
+    const lobby = lobbies[lobbyId];
+    if (!lobby) return cb?.({ status: false, err: "this_lobby_not_exist" });
+    if (socket.id !== lobby.host)
+      return cb?.({ status: false, err: "only_host_can_ban" });
+
+    const targetSocket = io.sockets.sockets.get(playerSocketId);
+    if (!targetSocket) return cb?.({ status: false, err: "player_not_found" });
+
+    const ip = targetSocket.data.ip;
+    if (!ip) return cb?.({ status: false, err: "could_not_determine_ip" });
+
+    lobby.bannedPlayers = lobby.bannedPlayers || new Set();
+    lobby.bannedPlayers.add(ip);
+    console.log(`Banning IP: ${ip} in lobby: ${lobbyId}`);
+
+    for (const player of [...(lobby.players || [])]) {
+      const s = io.sockets.sockets.get(player.socketId);
+      if (!s) continue;
+
+      if (s.data.ip === ip) {
+        s.leave(lobbyId);
+        s.emit("you-are-banned", { lobbyId });
+        playerLeft(s.id);
+      }
+    }
+
+    cb?.({ status: true, bannedIp: ip });
+  });
+
+  socket.on("make-host", (lobbyId, newHostSocketId, callback) => {
+    const lobby = lobbies[lobbyId];
+    if (!lobby) return cb?.({ status: false, err: "this_lobby_not_exist" });
+    if (socket.id !== lobby.host)
+      return cb?.({ status: false, err: "only_host_can_ban" });
+
+    const targetSocket = io.sockets.sockets.get(newHostSocketId);
+    if (!targetSocket) return cb?.({ status: false, err: "player_not_found" });
+
+    if (!lobby.players.some((p) => p.socketId === newHostSocketId))
+      return callback?.({ status: false, err: "player_not_in_lobby" });
+
+    lobby.host = newHostSocketId;
+    io.to(lobbyId).emit("host-changed", { newHost: newHostSocketId });
+    callback?.({ status: true });
+  });
+
   socket.on("player-left", () => {
     playerLeft(socket.id);
   });
 
-  // Handle player disconnection
   socket.on("disconnect", () => {
     playerLeft(socket.id);
   });
