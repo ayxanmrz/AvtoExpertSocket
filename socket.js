@@ -59,6 +59,7 @@ io.on("connection", (socket) => {
         // The bannedPlayers set now stores persistent client IDs
         bannedPlayers: new Set(),
         isLoading: false,
+        isDirty: false,
       };
       socket.join(lobbyId);
       io.to(lobbyId).emit("lobby-created", { lobbyId, host: socket.id });
@@ -91,11 +92,18 @@ io.on("connection", (socket) => {
       io.to(lobbyId).emit("player-joined", {
         players: lobbies[lobbyId].players,
       });
-      let { roundTime, host, totalRounds, currentRound, isLoading } =
+      let { roundTime, host, totalRounds, currentRound, isLoading, isDirty } =
         lobbies[lobbyId];
       callback({
         status: true,
-        lobby: { roundTime, host, totalRounds, currentRound, isLoading },
+        lobby: {
+          roundTime,
+          host,
+          totalRounds,
+          currentRound,
+          isLoading,
+          isDirty,
+        },
         clientId: newClientId,
       });
     } else {
@@ -160,6 +168,7 @@ io.on("connection", (socket) => {
     lobby.isLoading = true;
     lobby.totalRounds = totalRounds;
     lobby.roundTime = roundTime;
+    lobby.isDirty = true;
 
     try {
       const carsData = await fetchCars(lobby.totalRounds);
@@ -333,6 +342,21 @@ io.on("connection", (socket) => {
 
     lobby.host = newHostSocketId;
     io.to(lobbyId).emit("host-changed", { newHost: newHostSocketId });
+    callback?.({ status: true });
+  });
+
+  socket.on("reset-points", (lobbyId, callback) => {
+    const lobby = lobbies[lobbyId];
+    if (!lobby) return callback?.({ status: false });
+    if (socket.id !== lobby.host) return callback?.({ status: false });
+
+    lobby.players.forEach((player) => {
+      player.score = 0;
+    });
+    lobby.isDirty = false;
+    io.to(lobbyId).emit("points-reset", {
+      players: lobby.players,
+    });
     callback?.({ status: true });
   });
 
