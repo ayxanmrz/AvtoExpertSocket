@@ -19,6 +19,11 @@ const io = new Server(server, {
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN }));
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 const API_URL = process.env.SERVER_API;
 
 const lobbies = {}; // { lobbyId: { players, host, roundTime, totalRounds, currentRound, timer } }
