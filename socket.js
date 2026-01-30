@@ -140,10 +140,10 @@ io.on("connection", (socket) => {
       let lobby = lobbies[lobbyId];
       let score = calculateScore(
         lobby.cars[lobby.currentRound - 1].price,
-        priceGuess
+        priceGuess,
       );
       let playerLastScore = lobby.lastScores.find(
-        (player) => player.socketId === socket.id
+        (player) => player.socketId === socket.id,
       );
 
       if (playerLastScore) {
@@ -269,7 +269,7 @@ io.on("connection", (socket) => {
     Object.keys(lobbies).forEach((lobbyId) => {
       const lobby = lobbies[lobbyId];
       lobby.players = lobby.players.filter(
-        (player) => player.socketId !== socketId
+        (player) => player.socketId !== socketId,
       );
 
       if (lobby.players.length === 0) {
@@ -303,7 +303,7 @@ io.on("connection", (socket) => {
 
     // Find the client ID of the player to be banned
     const playerToBan = lobby.players.find(
-      (p) => p.socketId === playerSocketId
+      (p) => p.socketId === playerSocketId,
     );
     if (!playerToBan) {
       return cb?.({ status: false, err: "player_not_found" });
@@ -312,7 +312,7 @@ io.on("connection", (socket) => {
     // Add the client ID to the banned set
     lobby.bannedPlayers.add(playerToBan.clientId);
     console.log(
-      `Banning clientId: ${playerToBan.clientId} in lobby: ${lobbyId}`
+      `Banning clientId: ${playerToBan.clientId} in lobby: ${lobbyId}`,
     );
 
     // Find and disconnect the banned player
@@ -369,4 +369,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(8000, () => console.log("Server running on port 8000"));
+server.listen(process.env.PORT || 8000, () =>
+  console.log("Server running on port 8000"),
+);
