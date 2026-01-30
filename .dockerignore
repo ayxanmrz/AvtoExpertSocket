@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+.env.*.local
+.git
+.gitignore
+*.md
+.DS_Store
+deploy.sh
+deploy_ip.sh
+tempCodeRunnerFile.js
+*.log
+coverage
+.vscode
+.idea
