@@ -11,6 +11,7 @@ dotenv.config();
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
+  path: "socket/socket.io",
   cors: {
     origin: process.env.CLIENT_ORIGIN,
     methods: ["GET", "POST"],
